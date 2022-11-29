@@ -219,6 +219,10 @@ def formatPlaintext(plaintext):
             plaintext += "#"
     elif len(plaintext) > 8:
         plaintext = textwrap.wrap(plaintext, 8)
+        for i in range(0,len(plaintext)):
+            if len(plaintext[i]) < 8:
+                for j in range(0, 8-len(plaintext[i])):
+                    plaintext[i] += "#"
         return plaintext, True
     return plaintext, False
 
