@@ -230,6 +230,67 @@ def changeToBits(plaintext, isLargerThan8Chars):
         return plaintext
     plaintext = format(int.from_bytes(plaintext.encode(), 'big'), '064b')
     return plaintext
+def remove8thbits(key):
+    key = list(key)
+    for i in range(0,len(key)):
+        if(i+1)%8==0:
+            key[i]=''
+    key = ''.join(key)
+    return key
+def PC1(key, original_key_64):
+    key = list(key)
+    pc1_table = [57, 49, 41, 33, 25, 17, 9,  1,
+                 58, 50, 42, 34, 26, 18, 10, 2,
+                 59, 51, 43, 35, 27, 19, 11, 3,
+                 60, 52, 44, 36, 63, 55, 47, 39,
+                 31, 23, 15, 7,  62, 54, 46, 38,
+                 30, 22, 14, 6,  61, 53, 45, 37,
+                 29, 21, 13, 5,  28, 20, 12, 4]
+    j=0
+    for i in pc1_table:
+         key[j]=original_key_64[i-1]
+         j+=1
+    return ''.join(key)
+
+def PC2(key):
+    keycp=key
+    key=list(key)
+    pc2_table = [14, 17, 11, 24, 1, 5, 3, 28,
+                 15, 6, 21, 10, 23, 19, 12, 4,
+                 26, 8, 16, 7, 27, 20, 13, 2,
+                 41, 52, 31, 37, 47, 55, 30, 40,
+                 51, 45, 33, 48, 44, 49, 39, 56,
+                 34, 53, 46, 42, 50, 36, 29, 32]
+    j=0
+    for i in pc2_table:
+        key[j]=keycp[i-1]
+        j+=1
+    return ''.join(key)[0:48]
+
+def shiftLeft(key_part,number_of_shifts):
+    key_part =list(key_part)
+    for i in range(0,number_of_shifts):
+        shifted_bit=key_part[0]
+        del key_part[0]
+        key_part.append(shifted_bit)
+    return ''.join(key_part)
+
+def generateSubKeys(key):
+    original_key_64=key
+    key=remove8thbits(key)
+    key=PC1(key,original_key_64)
+    key=textwrap.wrap(key,28)#D & C
+    subkeys=[""]*16
+    for i in range (0,16):
+        if i==1-1 or i==2-1 or i==9-1 or i==16-1:
+            key[0]=shiftLeft(key[0],1)
+            key[1]=shiftLeft(key[1],1)
+        else:
+            key[0]=shiftLeft(key[0],2)
+            key[1]=shiftLeft(key[1],2)
+        subkeys[i]=PC2(key[0]+key[1])
+    return subkeys
+
 
 
 if __name__ == '__main__':
@@ -243,6 +304,8 @@ if __name__ == '__main__':
         key = input("Must be 8 characters, Please enter a valid key: ")
 
     key = changeToBits(key, False)
+    #subkeys=generateSubKeys(key)
+
 
     # test encrypt function
     encrypt(plaintext, key)
