@@ -1,6 +1,16 @@
 import textwrap
 
 
+def XOR(first_operand, second_operand):
+    xor_result = ""
+    for index in range(len(first_operand)):
+        if first_operand[index] == second_operand[index]:
+            xor_result += '0'
+        else:
+            xor_result += '1'
+    return xor_result
+
+
 def apply_initial_permutation(plain_text):
     ip_table = [58, 50, 42, 34, 26, 18, 10, 2,
                 60, 52, 44, 36, 28, 20, 12, 4,
@@ -33,6 +43,20 @@ def apply_final_permutation(text):
     for i in final_permutation_table:
         # Swap the bits according to the initial permutation table
         permutated_text += text[i - 1]
+
+    return permutated_text
+
+
+def apply_function_permutation(sbox_result):
+    permutation_table = [16, 7, 20, 21, 29, 12, 28, 17,
+                         1, 15, 23, 26, 5, 18, 31, 10,
+                         2, 8, 24, 14, 32, 27, 3, 9, 19,
+                         13, 30, 6, 22, 11, 4, 25]
+
+    permutated_text = ""
+    for i in permutation_table:
+        # Swap the bits according to the initial permutation table
+        permutated_text += sbox_result[i - 1]
 
     return permutated_text
 
@@ -150,40 +174,43 @@ def sbox_lookup(xor_result):
     return sbox_result
 
 
+def f_function(right_portion, passed_key):
+    expansion_result = apply_expansion(right_portion)
+    xor_result = XOR(expansion_result, passed_key)
+    sbox_result = sbox_lookup(xor_result)
+    permutation_result = apply_function_permutation(sbox_result)
+    return permutation_result
+
+
 def encrypt(plain_text, passed_key):
 
-    print("No permutation: "+ plain_text)
     plain_text = apply_initial_permutation(plain_text)
-    print("permutated: "+plain_text)
     left_portion = plain_text[:len(plain_text)//2]
     right_portion = plain_text[len(plain_text)//2:]
-    print(left_portion)
-    print(right_portion)
 
-    # new_left_portion = ""
-    # new_right_portion = ""
-    #
-    # for i in range(16):
-    #     new_left_portion = right_portion
-    #     f_function_result = f_function(right_portion)
-    #     # should xor the result with old left portion and the final result is the new right portion
-    #
-    # return 0
+    # Call key generation function which returns a list of keys
+    keys = []
 
-    plain_text = apply_final_permutation(plain_text)
-    print("final: " + plain_text)
+    # For first round
+    new_left_portion = right_portion  # L1 = R0
+    f_function_result = f_function(right_portion, keys[0])
+    new_right_portion = XOR(left_portion, f_function_result)  # R1 = f function xor L0
 
+    # For rounds 2 to 16
+    for i in range(1, 16):
+        old_left_portion = new_left_portion  # store L1
+        new_left_portion = new_right_portion  # L2 = R1
+        f_function_result = f_function(new_right_portion, keys[i])
+        # should xor the result with old left portion and the final result is the new right portion
+        new_right_portion = XOR(old_left_portion, f_function_result)  # R2 = f function xor L1
 
+    new_left_portion, new_right_portion = new_right_portion, new_left_portion
 
+    cipher_text = new_left_portion + new_right_portion
 
+    cipher_text = apply_final_permutation(cipher_text)
 
-
-
-
-
-
-
-
+    return cipher_text
 
 
 def formatPlaintext(plaintext):
