@@ -182,14 +182,11 @@ def f_function(right_portion, passed_key):
     return permutation_result
 
 
-def encrypt(plain_text, passed_key):
+def DES(plain_text, keys):
 
     plain_text = apply_initial_permutation(plain_text)
     left_portion = plain_text[:len(plain_text)//2]
     right_portion = plain_text[len(plain_text)//2:]
-
-    # Call key generation function which returns a list of keys
-    keys = []
 
     # For first round
     new_left_portion = right_portion  # L1 = R0
@@ -234,6 +231,19 @@ def changeToBits(plaintext, isLargerThan8Chars):
         return plaintext
     plaintext = format(int.from_bytes(plaintext.encode(), 'big'), '064b')
     return plaintext
+
+
+def change_from_bits(bits):
+
+    bits = textwrap.wrap(bits, 8)
+
+    ascii_text = ""
+    for i in bits:
+        ascii_text += chr(int(i, 2))
+
+    return ascii_text
+
+
 def remove8thbits(key):
     key = list(key)
     for i in range(0,len(key)):
@@ -241,6 +251,7 @@ def remove8thbits(key):
             key[i]=''
     key = ''.join(key)
     return key
+
 def PC1(key, original_key_64):
     key = list(key)
     pc1_table = [57, 49, 41, 33, 25, 17, 9,  1,
@@ -255,6 +266,7 @@ def PC1(key, original_key_64):
          key[j]=original_key_64[i-1]
          j+=1
     return ''.join(key)
+
 
 def PC2(key):
     keycp=key
@@ -271,6 +283,7 @@ def PC2(key):
         j+=1
     return ''.join(key)[0:48]
 
+
 def shiftLeft(key_part,number_of_shifts):
     key_part =list(key_part)
     for i in range(0,number_of_shifts):
@@ -278,6 +291,7 @@ def shiftLeft(key_part,number_of_shifts):
         del key_part[0]
         key_part.append(shifted_bit)
     return ''.join(key_part)
+
 
 def generateSubKeys(key):
     original_key_64=key
@@ -296,23 +310,41 @@ def generateSubKeys(key):
     return subkeys
 
 
-
 if __name__ == '__main__':
 
     plaintext = input("Enter plain text: ")
     plaintext, isLargerThan8Chars = formatPlaintext(plaintext)
     plaintext = changeToBits(plaintext, isLargerThan8Chars)
+    print("Plaintext binary: ", plaintext)
     key = input("Enter key: ")
 
     while len(key) != 8:
         key = input("Must be 8 characters, Please enter a valid key: ")
 
     key = changeToBits(key, False)
-    #subkeys=generateSubKeys(key)
 
+    cipher_text = ""
+    keys = generateSubKeys(key)
+    if isLargerThan8Chars:
 
-    # test encrypt function
-    encrypt(plaintext, key)
+        for i in plaintext:
+            cipher_text += DES(i, keys)
 
+    else:
+        cipher_text = DES(plaintext, keys)
 
+    print("ciphertext binary: " + cipher_text)
+    print("ciphertext hexadecimal: " + hex(int(cipher_text, 2)))
 
+    text_to_decrypt = textwrap.wrap(cipher_text, 64)
+
+    keys.reverse()
+    cipher_text = ""
+    if isLargerThan8Chars:
+
+        for i in text_to_decrypt:
+            cipher_text += DES(i, keys)
+
+    else:
+        cipher_text = DES(text_to_decrypt[0], keys)
+    print("plaintext after converting keys: " + change_from_bits(cipher_text))
