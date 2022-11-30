@@ -210,7 +210,7 @@ def DES(plain_text, keys):
     return cipher_text
 
 
-def formatPlaintext(plaintext):
+def format_plaintext(plaintext):
     if len(plaintext) < 8:
         for i in range(0, 8-len(plaintext)):
             plaintext += "#"
@@ -224,8 +224,8 @@ def formatPlaintext(plaintext):
     return plaintext, False
 
 
-def changeToBits(plaintext, isLargerThan8Chars):
-    if isLargerThan8Chars:
+def change_to_bits(plaintext, is_larger_than_8_chars):
+    if is_larger_than_8_chars:
         for i in range(0, len(plaintext)):
             plaintext[i] = format(int.from_bytes(plaintext[i].encode(), 'big'), '064b')
         return plaintext
@@ -244,7 +244,7 @@ def change_from_bits(bits):
     return ascii_text
 
 
-def remove8thbits(key):
+def remove_8th_bits(key):
     key = list(key)
     for i in range(0,len(key)):
         if(i+1)%8==0:
@@ -252,7 +252,7 @@ def remove8thbits(key):
     key = ''.join(key)
     return key
 
-def PC1(key, original_key_64):
+def apply_PC1(key, original_key_64):
     key = list(key)
     pc1_table = [57, 49, 41, 33, 25, 17, 9,  1,
                  58, 50, 42, 34, 26, 18, 10, 2,
@@ -268,8 +268,8 @@ def PC1(key, original_key_64):
     return ''.join(key)
 
 
-def PC2(key):
-    keycp=key
+def apply_PC2(key):
+    keycp=key # Copy because permute based on the combination of D & C 
     key=list(key)
     pc2_table = [14, 17, 11, 24, 1, 5, 3, 28,
                  15, 6, 21, 10, 23, 19, 12, 4,
@@ -281,51 +281,59 @@ def PC2(key):
     for i in pc2_table:
         key[j]=keycp[i-1]
         j+=1
-    return ''.join(key)[0:48]
+    return ''.join(key)[0:48] #Removal the 8 bits ((28+28)56 => 48)
 
 
-def shiftLeft(key_part,number_of_shifts):
+def shift_left(key_part,number_of_shifts):
     key_part =list(key_part)
     for i in range(0,number_of_shifts):
-        shifted_bit=key_part[0]
-        del key_part[0]
-        key_part.append(shifted_bit)
+        shifted_bit=key_part[0] #MSB stored in a temporary
+        del key_part[0] # deleting MSB
+        key_part.append(shifted_bit) #Rotate
     return ''.join(key_part)
 
 
-def generateSubKeys(key):
+def generate_subkeys(key):
+    # Copy of the original 64 bit key, used in pc1 because the table's numbers refer to bits of the original
     original_key_64=key
-    key=remove8thbits(key)
-    key=PC1(key,original_key_64)
-    key=textwrap.wrap(key,28)#D & C
-    subkeys=[""]*16
+    # Removal of each 8th bit
+    key=remove_8th_bits(key)
+    
+    key=apply_PC1(key,original_key_64)
+
+    #D & C
+    key=textwrap.wrap(key,28)
+
+    subkeys=[""]*16 #init
+
+    #Keys of the 16 rounds
     for i in range (0,16):
-        if i==1-1 or i==2-1 or i==9-1 or i==16-1:
-            key[0]=shiftLeft(key[0],1)
-            key[1]=shiftLeft(key[1],1)
-        else:
-            key[0]=shiftLeft(key[0],2)
-            key[1]=shiftLeft(key[1],2)
-        subkeys[i]=PC2(key[0]+key[1])
+        if i==1-1 or i==2-1 or i==9-1 or i==16-1: #Shift by 1
+            key[0]=shift_left(key[0],1)
+            key[1]=shift_left(key[1],1)
+        else: #Shift by 2
+            key[0]=shift_left(key[0],2)
+            key[1]=shift_left(key[1],2)
+        subkeys[i]=apply_PC2(key[0]+key[1]) # Combining D & C if each round and then performing apply_PC2 => finialized subkey of the round
     return subkeys
 
 
 if __name__ == '__main__':
 
     plaintext = input("Enter plain text: ")
-    plaintext, isLargerThan8Chars = formatPlaintext(plaintext)
-    plaintext = changeToBits(plaintext, isLargerThan8Chars)
+    plaintext, is_larger_than_8_chars = format_plaintext(plaintext)
+    plaintext = change_to_bits(plaintext, is_larger_than_8_chars)
     print("Plaintext binary: ", plaintext)
     key = input("Enter key: ")
 
     while len(key) != 8:
         key = input("Must be 8 characters, Please enter a valid key: ")
 
-    key = changeToBits(key, False)
+    key = change_to_bits(key, False)
 
     cipher_text = ""
-    keys = generateSubKeys(key)
-    if isLargerThan8Chars:
+    keys = generate_subkeys(key)
+    if is_larger_than_8_chars:
 
         for i in plaintext:
             cipher_text += DES(i, keys)
@@ -340,7 +348,7 @@ if __name__ == '__main__':
 
     keys.reverse()
     cipher_text = ""
-    if isLargerThan8Chars:
+    if is_larger_than_8_chars:
 
         for i in text_to_decrypt:
             cipher_text += DES(i, keys)
