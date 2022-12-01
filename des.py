@@ -213,13 +213,13 @@ def DES(plain_text, keys):
 def format_plaintext(plaintext):
     if len(plaintext) < 8:
         for i in range(0, 8-len(plaintext)):
-            plaintext += "#"
+            plaintext += "*"
     elif len(plaintext) > 8:
         plaintext = textwrap.wrap(plaintext, 8)
         for i in range(0,len(plaintext)):
             if len(plaintext[i]) < 8:
                 for j in range(0, 8-len(plaintext[i])):
-                    plaintext[i] += "#"
+                    plaintext[i] += "*"
         return plaintext, True
     return plaintext, False
 
@@ -291,7 +291,13 @@ def shift_left(key_part,number_of_shifts):
         del key_part[0] # deleting MSB
         key_part.append(shifted_bit) #Rotate
     return ''.join(key_part)
-
+def shift_right(key_part,number_of_shifts):
+    key_part =list(key_part)
+    for i in range(0,number_of_shifts):
+        shifted_bit=key_part[len(key_part)-1] #MSB stored in a temporary
+        del key_part[len(key_part)-1] # deleting LSB
+        key_part.insert(0,shifted_bit) #Rotate
+    return ''.join(key_part)
 
 def generate_subkeys(key):
     # Copy of the original 64 bit key, used in pc1 because the table's numbers refer to bits of the original
@@ -305,18 +311,34 @@ def generate_subkeys(key):
     key=textwrap.wrap(key,28)
 
     subkeys=[""]*16 #init
-
+    last_round_56_bits=""
     #Keys of the 16 rounds
     for i in range (0,16):
         if i==1-1 or i==2-1 or i==9-1 or i==16-1: #Shift by 1
             key[0]=shift_left(key[0],1)
             key[1]=shift_left(key[1],1)
+            if i==15: last_round_56_bits=key[0]+key[1]
         else: #Shift by 2
             key[0]=shift_left(key[0],2)
             key[1]=shift_left(key[1],2)
         subkeys[i]=apply_PC2(key[0]+key[1]) # Combining D & C if each round and then performing apply_PC2 => finialized subkey of the round
-    return subkeys
+    return subkeys,last_round_56_bits
+def generate_subkeys_reverse_for_decrypt(last_round_56_bits):
+    subkeys=[""]*16 #init
+    subkeys[0]=apply_PC2(last_round_56_bits)
+    last_round_56_bits=textwrap.wrap(last_round_56_bits,28)
 
+    
+    #Keys of the 16 rounds
+    for i in range (1,16):
+        if i==1-1 or i==2-1 or i==9-1 or i==16-1: #Shift by 1
+            last_round_56_bits[0]=shift_right(last_round_56_bits[0],1)
+            last_round_56_bits[1]=shift_right(last_round_56_bits[1],1)
+        else: #Shift by 2
+            last_round_56_bits[0]=shift_right(last_round_56_bits[0],2)
+            last_round_56_bits[1]=shift_right(last_round_56_bits[1],2)
+        subkeys[i]=apply_PC2(last_round_56_bits[0]+last_round_56_bits[1]) # Combining D & C if each round and then performing apply_PC2 => finialized subkey of the round
+    return subkeys
 
 if __name__ == '__main__':
 
@@ -332,7 +354,7 @@ if __name__ == '__main__':
     key = change_to_bits(key, False)
 
     cipher_text = ""
-    keys = generate_subkeys(key)
+    keys,last_round_56_bits = generate_subkeys(key)
     if is_larger_than_8_chars:
 
         for i in plaintext:
@@ -346,13 +368,13 @@ if __name__ == '__main__':
 
     text_to_decrypt = textwrap.wrap(cipher_text, 64)
 
-    keys.reverse()
+    keys_for_decrypt=generate_subkeys_reverse_for_decrypt(last_round_56_bits)
     cipher_text = ""
     if is_larger_than_8_chars:
 
         for i in text_to_decrypt:
-            cipher_text += DES(i, keys)
+            cipher_text += DES(i, keys_for_decrypt)
 
     else:
-        cipher_text = DES(text_to_decrypt[0], keys)
+        cipher_text = DES(text_to_decrypt[0], keys_for_decrypt)
     print("plaintext after converting keys: " + change_from_bits(cipher_text))
