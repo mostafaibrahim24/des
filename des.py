@@ -311,33 +311,58 @@ def generate_subkeys(key):
     key=textwrap.wrap(key,28)
 
     subkeys=[""]*16 #init
-    last_round_56_bits=""
+    last_round_56_bits_presubkey=""
     #Keys of the 16 rounds
     for i in range (0,16):
         if i==1-1 or i==2-1 or i==9-1 or i==16-1: #Shift by 1
             key[0]=shift_left(key[0],1)
             key[1]=shift_left(key[1],1)
-            if i==15: last_round_56_bits=key[0]+key[1]
+            if i==15: last_round_56_bits_presubkey=key[0]+key[1]
         else: #Shift by 2
             key[0]=shift_left(key[0],2)
             key[1]=shift_left(key[1],2)
         subkeys[i]=apply_PC2(key[0]+key[1]) # Combining D & C if each round and then performing apply_PC2 => finialized subkey of the round
-    return subkeys,last_round_56_bits
-def generate_subkeys_reverse_for_decrypt(last_round_56_bits):
+    return subkeys,last_round_56_bits_presubkey
+def generate_subkeys_reverse_with_key(key):
+    # Copy of the original 64 bit key, used in pc1 because the table's numbers refer to bits of the original
+    original_key_64=key
+    # Removal of each 8th bit
+    key=remove_8th_bits(key)
+    
+    key=apply_PC1(key,original_key_64)
+
     subkeys=[""]*16 #init
-    subkeys[0]=apply_PC2(last_round_56_bits)
-    last_round_56_bits=textwrap.wrap(last_round_56_bits,28)
+    subkeys[0]=apply_PC2(key)
+
+    #D & C
+    key=textwrap.wrap(key,28)
 
     
     #Keys of the 16 rounds
     for i in range (1,16):
         if i==1-1 or i==2-1 or i==9-1 or i==16-1: #Shift by 1
-            last_round_56_bits[0]=shift_right(last_round_56_bits[0],1)
-            last_round_56_bits[1]=shift_right(last_round_56_bits[1],1)
+            key[0]=shift_right(key[0],1)
+            key[1]=shift_right(key[1],1)
         else: #Shift by 2
-            last_round_56_bits[0]=shift_right(last_round_56_bits[0],2)
-            last_round_56_bits[1]=shift_right(last_round_56_bits[1],2)
-        subkeys[i]=apply_PC2(last_round_56_bits[0]+last_round_56_bits[1]) # Combining D & C if each round and then performing apply_PC2 => finialized subkey of the round
+            key[0]=shift_right(key[0],2)
+            key[1]=shift_right(key[1],2)
+        subkeys[i]=apply_PC2(key[0]+key[1]) # Combining D & C if each round and then performing apply_PC2 => finialized subkey of the round
+    return subkeys
+def generate_subkeys_reverse_with_last_round(last_round_56_bits_presubkey):
+    subkeys=[""]*16 #init
+    subkeys[0]=apply_PC2(last_round_56_bits_presubkey)
+    last_round_56_bits_presubkey=textwrap.wrap(last_round_56_bits_presubkey,28)
+
+    
+    #Keys of the 16 rounds
+    for i in range (1,16):
+        if i==1-1 or i==2-1 or i==9-1 or i==16-1: #Shift by 1
+            last_round_56_bits_presubkey[0]=shift_right(last_round_56_bits_presubkey[0],1)
+            last_round_56_bits_presubkey[1]=shift_right(last_round_56_bits_presubkey[1],1)
+        else: #Shift by 2
+            last_round_56_bits_presubkey[0]=shift_right(last_round_56_bits_presubkey[0],2)
+            last_round_56_bits_presubkey[1]=shift_right(last_round_56_bits_presubkey[1],2)
+        subkeys[i]=apply_PC2(last_round_56_bits_presubkey[0]+last_round_56_bits_presubkey[1]) # Combining D & C if each round and then performing apply_PC2 => finialized subkey of the round
     return subkeys
 
 if __name__ == '__main__':
@@ -354,7 +379,7 @@ if __name__ == '__main__':
     key = change_to_bits(key, False)
 
     cipher_text = ""
-    keys,last_round_56_bits = generate_subkeys(key)
+    keys,last_round_56_bits_presubkey = generate_subkeys(key)
     if is_larger_than_8_chars:
 
         for i in plaintext:
@@ -368,7 +393,8 @@ if __name__ == '__main__':
 
     text_to_decrypt = textwrap.wrap(cipher_text, 64)
 
-    keys_for_decrypt=generate_subkeys_reverse_for_decrypt(last_round_56_bits)
+    #keys_for_decrypt=generate_subkeys_reverse_with_last_round(last_round_56_bits_presubkey)
+    keys_for_decrypt=generate_subkeys_reverse_with_key(key)
     cipher_text = ""
     if is_larger_than_8_chars:
 
